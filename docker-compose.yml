@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  gov-db:
+    build:
+      context: ./db
+      dockerfile: Dockerfile
+    container_name: gov-postgres-db
+    environment:
+      POSTGRES_USER: gov_admin
+      POSTGRES_PASSWORD: gov_secret_pass
+      POSTGRES_DB: gov_registry_db
+    ports:
+      - "5439:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gov_admin -d gov_registry_db"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+    networks:
+      - auth-shared-net # Подключаем к внешней общей сети
+
+  gov-soap-service:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: gov-soap-service
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=gov-db
+      - DB_PORT=5432
+      - DB_USER=gov_admin
+      - DB_PASSWORD=gov_secret_pass
+      - DB_NAME=gov_registry_db
+    depends_on:
+      gov-db:
+        condition: service_healthy
+    networks:
+      - auth-shared-net # Подключаем к внешней общей сети
+
+networks:
+  auth-shared-net:
+    external: true
+    name: auth-shared-network # Имя моста, созданного командой docker network create
